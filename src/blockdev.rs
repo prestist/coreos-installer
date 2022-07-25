@@ -557,13 +557,7 @@ impl SavedPartitions {
         // read GPT
         let gpt = match GPT::find_from(disk) {
             Ok(gpt) => gpt,
-            Err(gptman::Error::InvalidSignature) => {
-                // no GPT on this disk, so no partitions to save
-                return Ok(Self {
-                    sector_size,
-                    partitions: Vec::new(),
-                });
-            }
+            Err(gptman::Error::InvalidSignature) => return Err(gptman::Error::InvalidSignature).context("no gpt signature found, cannot save partitions"),
             Err(e) => return Err(e).context("reading partition table"),
         };
 
@@ -1452,11 +1446,16 @@ mod tests {
 
         // test merging with unformatted initial disk
         let mut disk = make_unformatted_disk();
-        let saved = SavedPartitions::new_from_file(&mut disk, 512, &vec![label("z")]).unwrap();
-        let mut disk = make_disk(512, &merge_base_parts);
-        saved.merge(&mut image, &mut disk).unwrap();
-        let result = GPT::find_from(&mut disk).unwrap();
-        assert_partitions_eq(&merge_base_parts, &result, "unformatted disk");
+        let err = SavedPartitions::new_from_file(&mut disk, 512, &vec![label("z")]).unwrap_err();
+        assert!(
+            format!("{:#}", err).contains(&gptman::Error::InvalidSignature.to_string()),
+            "incorrect error: {:#}",
+            err
+        );
+        //let mut disk = make_disk(512, &merge_base_parts);
+        //saved.merge(&mut image, &mut disk).unwrap();
+        //let result = GPT::find_from(&mut disk).unwrap();
+        //assert_partitions_eq(&merge_base_parts, &result, "unformatted disk");
 
         // test overlapping partitions
         let saved =
