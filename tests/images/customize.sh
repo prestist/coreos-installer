@@ -145,7 +145,11 @@ qemu_disk() {
 }
 
 assert() {
-    grep -Fq "$1" log
+    if grep -Fq "$1" log; then
+        echo "Assertion passed: '$1' found in log"
+    else
+        echo "Assertion failed: '$1' not found in log"
+    fi
 }
 
 check_live_noinstall() {
